@@ -1,30 +1,35 @@
 package plugin;
 
-import ij.*;
-import ij.process.*;
-import ij.gui.*;
-import ij.io.*;
-import ij.measure.ResultsTable;
-
 import java.awt.Rectangle;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import ij.plugin.*;
+import javax.imageio.ImageIO;
+
+import ij.IJ;
+import ij.ImagePlus;
+import ij.io.DirectoryChooser;
+import ij.measure.ResultsTable;
+import ij.plugin.PlugIn;
+import ij.plugin.filter.ParticleAnalyzer;
+import ij.process.ImageConverter;
+import ij.process.ImageProcessor;
 
 public class _ProcessaImagens implements PlugIn {
 
 	public void run(String arg) {
 		String caminhoPastaOrigem = new String();
-		String caminhoArquivoResultados = new String();
 
 		// caixa de diálogo para escolha da pasta com as imagens
 		DirectoryChooser.setDefaultDirectory(System.getProperty("user.dir") + "/amostras/");
 		ij.io.DirectoryChooser directoryOpen = new DirectoryChooser("Selecione a pasta com as imagens");
 		caminhoPastaOrigem = directoryOpen.getDirectory();
-		caminhoArquivoResultados = caminhoPastaOrigem + new SimpleDateFormat("yyyyMMdd-HHmm").format(new Date());
+		// cria uma pasta para receber os resultados das análises
+		File pastaResultados = new File(caminhoPastaOrigem + new SimpleDateFormat("yyyyMMdd-HHmm").format(new Date()));
+		pastaResultados.mkdir();
 
 		// Classe para manipulação de arquivos no disco
 		File pastaOrigem = new File(caminhoPastaOrigem);
@@ -46,39 +51,94 @@ public class _ProcessaImagens implements PlugIn {
 		// atenderem ao filtro arquivosImagem
 		File[] arquivosOrigem = pastaOrigem.listFiles(arquivosImagem);
 
-		// File pastaResultados = new File(caminhoPastaResultados);
-		// pastaResultados.mkdir();
-
 		// cria uma tabela do IJ para receber os resultados da análise
-		ResultsTable resultstable = new ResultsTable();
+		ResultsTable tabelaResultados = new ResultsTable();
 		// percorre o vetor arquivosImagem
-		for (int i = 0; i < arquivosOrigem.length; i++) {
-			if (arquivosOrigem[i].isFile()) {
+		for (File arquivoAnalisar : arquivosOrigem) {
+			if (arquivoAnalisar.isFile()) {
 				// executa a funcção de análise das imagens em cada arquivo do
 				// vetor arquivosImagem
-				int resultado = analisarImagem(arquivosOrigem[i].getAbsolutePath(), caminhoArquivoResultados);
-				// armazena na tabela de resultados o nome do arquivo e o valor
-				// retornado pela função de análise
-				resultstable.setValue("Arquivo", i, arquivosOrigem[i].getName());
-				resultstable.setValue("Resultado", i, resultado);
+				int resultado = analisarImagem(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/");
+				try {
+					// armazena na tabela de resultados o nome do arquivo e o
+					// valor retornado pela função de análise
+					tabelaResultados.incrementCounter();
+					tabelaResultados.addValue("Arquivo", arquivoAnalisar.getName());
+					tabelaResultados.addValue("Resultado", resultado);
+				} catch (Exception e) {
+					IJ.showMessage(e.toString());
+				}
 			}
 		}
-
-		resultstable.save(caminhoArquivoResultados + ".xls");
-		resultstable.show("Resultados");
+		tabelaResultados.save(pastaResultados.getAbsolutePath() + "/resultados.xls");
+		tabelaResultados.show("Resultados");
 	}
 
-	public int analisarImagem(String caminhoArquivo, String caminhoImagemResultado) {
-		ImagePlus imagem = IJ.openImage(caminhoArquivo);
-		// ImagePlus binarizada = new ImagePlus("",
-		// binarizarImagem(imagem.getProcessor()));
-		// binarizada.show();
-		binarizarImagem(imagem.getProcessor());
-		//imagem.show();
-		return imagem.hashCode();
+	public int analisarImagem(File arquivoImagem, String caminhoImagemResultado) {
+		ImagePlus imagemAnalise = IJ.openImage(arquivoImagem.getAbsolutePath());
+
+		// Converte a imagem para escala de conza em 8 bits (0 a 255)
+		ImageConverter ic = new ImageConverter(imagemAnalise);
+		ic.convertToGray8();
+
+		try {
+			ImagePlus binarizada = new ImagePlus("", binarizarImagem(imagemAnalise.getProcessor()));
+			ImageIO.write(binarizada.getBufferedImage(), "jpeg",
+					new File(caminhoImagemResultado + "/binarizarImagem_" + arquivoImagem.getName()));
+
+			// Constructs a ParticleAnalyzer.
+			// param options a flag word created by Oring SHOW_RESULTS,
+			// EXCLUDE_EDGE_PARTICLES, etc.
+			// param measurements a flag word created by ORing constants defined
+			// in the Measurements interface
+			// param rt a ResultsTable where the measurements will be stored
+			// param minSize the smallest particle size in pixels
+			// param maxSize the largest particle size in pixels
+			// param minCirc minimum circularity
+			// param maxCirc maximum circularity
+			ResultsTable resultado = new ResultsTable();
+
+			int options = ParticleAnalyzer.SHOW_OVERLAY_MASKS | ParticleAnalyzer.SHOW_SUMMARY;
+			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
+
+			// "Area"; [0]=AREA
+			// "Mean gray value"; [1]=MEAN
+			// "Standard deviation"; [2]=STD_DEV
+			// "Modal gray value"; [3]=MODE
+			// "Min & max gray value"; [4]=MIN_MAX
+			// "Centroid"; [5]=CENTROID
+			// "Center of mass"; [6]=CENTER_OF_MASS
+			// "Perimeter"; [7]=PERIMETER
+			// "Bounding rectangle"; [8]=RECT
+			// "Fit ellipse"; [9]=ELLIPSE
+			// "Shape descriptors"; [10]=SHAPE_DESCRIPTORS
+			// "Feret's diameter"; [11]=FERET
+			// "Integrated density"; [12]=INTEGRATED_DENSITY
+			// "Median"; [13]=MEDIAN
+			// "Skewness"; [14]=SKEWNESS
+			// "Kurtosis"; [15]=KURTOSIS
+			// "Area_fraction"; [16]=AREA_FRACTION
+			// "Stack position"; [17]=STACK_POSITION
+			int measurements = ParticleAnalyzer.AREA | ParticleAnalyzer.FERET;
+
+			ParticleAnalyzer analisadorParticulas = new ParticleAnalyzer(options, measurements, resultado, minSize,
+					maxSize);
+			// analisadorParticulas.showDialog();
+			analisadorParticulas.analyze(binarizada);
+
+			//ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg",new File(caminhoImagemResultado + "/analisadorParticulas_" + arquivoImagem.getName()));
+			resultado.save(caminhoImagemResultado + "/analisadorParticulas_" + arquivoImagem.getName() + ".xls");
+
+			// resultado.show(arquivoImagem.getName());
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return 0;
 	}
 
-	public void binarizarImagem(ImageProcessor ip) {
+	public ImageProcessor binarizarImagem(ImageProcessor ip) {
 		int width = ip.getWidth();
 		Rectangle r = ip.getRoi();
 
@@ -89,7 +149,6 @@ public class _ProcessaImagens implements PlugIn {
 
 		int nt = ip.getHeight() * ip.getWidth();
 		int hmax = 0, ymax = 0, T = 0;
-		GenericDialog gd = new GenericDialog("Results");
 
 		for (int y = 0; y < 255; y++) {
 			ni[y] = 0;
@@ -102,7 +161,7 @@ public class _ProcessaImagens implements PlugIn {
 					ni[ip.getPixel(x, y)]++;
 				} catch (Exception e) {
 					IJ.showMessage("Pixel " + x + "," + y + " : " + ip.getPixel(x, y));
-					return;
+					return null;
 				}
 			}
 		}
@@ -119,7 +178,6 @@ public class _ProcessaImagens implements PlugIn {
 				max = h[i];
 				hmax = i;
 			}
-			;
 		}
 
 		// calculo do novo vetor y
@@ -134,16 +192,10 @@ public class _ProcessaImagens implements PlugIn {
 				max = vetory[i];
 				ymax = i;
 			}
-			;
 		}
 
 		// calculo do limiar
 		T = Math.round(hmax + ymax) / 2;
-
-		// mostra resultados
-		gd.addNumericField("Threshold value: ", T, 0);
-		gd.showDialog();
-
 		for (int y = r.y; y < (r.y + r.height); y++) {
 			offset = y * width;
 			for (int x = r.x; x < (r.x + r.width); x++) {
@@ -156,7 +208,7 @@ public class _ProcessaImagens implements PlugIn {
 			}
 		}
 
-		// return ip;
+		return ip;
 	}
 
 }
