@@ -1,4 +1,4 @@
-package plugin;
+package analiseParticulas;
 
 import java.awt.Rectangle;
 import java.io.File;
@@ -26,52 +26,56 @@ public class _ProcessaImagens implements PlugIn {
 		// caixa de diálogo para escolha da pasta com as imagens
 		DirectoryChooser.setDefaultDirectory(System.getProperty("user.dir") + "/amostras/");
 		ij.io.DirectoryChooser directoryOpen = new DirectoryChooser("Selecione a pasta com as imagens");
-		caminhoPastaOrigem = directoryOpen.getDirectory();
-		// cria uma pasta para receber os resultados das análises
-		File pastaResultados = new File(caminhoPastaOrigem + new SimpleDateFormat("yyyyMMdd-HHmm").format(new Date()));
-		pastaResultados.mkdir();
 
-		// Classe para manipulação de arquivos no disco
-		File pastaOrigem = new File(caminhoPastaOrigem);
-		// classe para filtrar os arquivos de imagem apenas .JPG e .JPEG na
-		// funçao pastaOrigem.listFiles()
-		FilenameFilter arquivosImagem = new FilenameFilter() {
-			@Override
-			public boolean accept(File dir, String name) {
-				if (name.lastIndexOf('.') > 0) {
-					int lastIndex = name.lastIndexOf('.');
-					String str = name.substring(lastIndex);
-					if (str.equals(".jpg") || str.equals(".jpeg"))
-						return true;
-				}
-				return false;
-			}
-		};
-		// transfere para o vetor arquivosOrigem, todos os arquivos que
-		// atenderem ao filtro arquivosImagem
-		File[] arquivosOrigem = pastaOrigem.listFiles(arquivosImagem);
+		if (directoryOpen.getDirectory() != null) {
+			caminhoPastaOrigem = directoryOpen.getDirectory();
+			// cria uma pasta para receber os resultados das análises
+			File pastaResultados = new File(
+					caminhoPastaOrigem + new SimpleDateFormat("yyyyMMdd-HHmm").format(new Date()));
+			pastaResultados.mkdir();
 
-		// cria uma tabela do IJ para receber os resultados da análise
-		ResultsTable tabelaResultados = new ResultsTable();
-		// percorre o vetor arquivosImagem
-		for (File arquivoAnalisar : arquivosOrigem) {
-			if (arquivoAnalisar.isFile()) {
-				// executa a funcção de análise das imagens em cada arquivo do
-				// vetor arquivosImagem
-				int resultado = analisarImagem(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/");
-				try {
-					// armazena na tabela de resultados o nome do arquivo e o
-					// valor retornado pela função de análise
-					tabelaResultados.incrementCounter();
-					tabelaResultados.addValue("Arquivo", arquivoAnalisar.getName());
-					tabelaResultados.addValue("Resultado", resultado);
-				} catch (Exception e) {
-					IJ.showMessage(e.toString());
+			// Classe para manipulação de arquivos no disco
+			File pastaOrigem = new File(caminhoPastaOrigem);
+			// classe para filtrar os arquivos de imagem apenas .JPG e .JPEG na
+			// funçao pastaOrigem.listFiles()
+			FilenameFilter arquivosImagem = new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					if (name.lastIndexOf('.') > 0) {
+						int lastIndex = name.lastIndexOf('.');
+						String str = name.substring(lastIndex);
+						if (str.equals(".jpg") || str.equals(".jpeg"))
+							return true;
+					}
+					return false;
+				}
+			};
+			// transfere para o vetor arquivosOrigem, todos os arquivos que
+			// atenderem ao filtro arquivosImagem
+			File[] arquivosOrigem = pastaOrigem.listFiles(arquivosImagem);
+
+			// cria uma tabela do IJ para receber os resultados da análise
+			ResultsTable tabelaResultados = new ResultsTable();
+			// percorre o vetor arquivosImagem
+			for (File arquivoAnalisar : arquivosOrigem) {
+				if (arquivoAnalisar.isFile()) {
+					// executa a funcção de análise das imagens em cada arquivo
+					// do vetor arquivosImagem
+					int resultado = analisarImagem(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/");
+					try {
+						// armazena na tabela de resultados o nome do arquivo e
+						// o valor retornado pela função de análise
+						tabelaResultados.incrementCounter();
+						tabelaResultados.addValue("Arquivo", arquivoAnalisar.getName());
+						tabelaResultados.addValue("Resultado", resultado);
+					} catch (Exception e) {
+						IJ.showMessage(e.toString());
+					}
 				}
 			}
+			tabelaResultados.save(pastaResultados.getAbsolutePath() + "/resultados.csv");
+			tabelaResultados.show("Resultados");
 		}
-		tabelaResultados.save(pastaResultados.getAbsolutePath() + "/resultados.csv");
-		tabelaResultados.show("Resultados");
 	}
 
 	public int analisarImagem(File arquivoImagem, String caminhoImagemResultado) {
@@ -89,12 +93,13 @@ public class _ProcessaImagens implements PlugIn {
 
 			// tabela de resultados
 			ResultsTable resultado = new ResultsTable();
-			
-			// Opções para a análise de particulas @ij.plugin.filter.ParticleAnalyzer
+
+			// Opções para a análise de particulas
+			// @ij.plugin.filter.ParticleAnalyzer
 			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
 					| ParticleAnalyzer.DISPLAY_SUMMARY | ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES
 					| ParticleAnalyzer.INCLUDE_HOLES;
-			
+
 			// Define a área mínima e máxima das particulas
 			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
 
@@ -116,7 +121,7 @@ public class _ProcessaImagens implements PlugIn {
 			// "Kurtosis"; [15]=KURTOSIS
 			// "Area_fraction"; [16]=AREA_FRACTION
 			// "Stack position"; [17]=STACK_POSITION
-			
+
 			// opções de medidas realizadas @ij.measure.Measurements
 			int measurements = ij.measure.Measurements.AREA | ij.measure.Measurements.FERET;
 
