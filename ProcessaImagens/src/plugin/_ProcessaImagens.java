@@ -75,6 +75,7 @@ public class _ProcessaImagens implements PlugIn {
 	}
 
 	public int analisarImagem(File arquivoImagem, String caminhoImagemResultado) {
+		int valorResultado = Integer.MAX_VALUE;
 		ImagePlus imagemAnalise = IJ.openImage(arquivoImagem.getAbsolutePath());
 
 		// Converte a imagem para escala de conza em 8 bits (0 a 255)
@@ -84,21 +85,12 @@ public class _ProcessaImagens implements PlugIn {
 		try {
 			ImagePlus binarizada = new ImagePlus("", binarizarImagem(imagemAnalise.getProcessor()));
 			ImageIO.write(binarizada.getBufferedImage(), "jpeg",
-					new File(caminhoImagemResultado + "/binarizarImagem_" + arquivoImagem.getName()));
+					new File(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo01_binarizarImagem.jpg"));
 
-			// Constructs a ParticleAnalyzer.
-			// param options a flag word created by Oring SHOW_RESULTS,
-			// EXCLUDE_EDGE_PARTICLES, etc.
-			// param measurements a flag word created by ORing constants defined
-			// in the Measurements interface
-			// param rt a ResultsTable where the measurements will be stored
-			// param minSize the smallest particle size in pixels
-			// param maxSize the largest particle size in pixels
-			// param minCirc minimum circularity
-			// param maxCirc maximum circularity
 			ResultsTable resultado = new ResultsTable();
-
-			int options = ParticleAnalyzer.SHOW_OVERLAY_MASKS | ParticleAnalyzer.SHOW_SUMMARY;
+			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
+					| ParticleAnalyzer.DISPLAY_SUMMARY | ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES
+					| ParticleAnalyzer.INCLUDE_HOLES;
 			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
 
 			// "Area"; [0]=AREA
@@ -124,18 +116,22 @@ public class _ProcessaImagens implements PlugIn {
 			ParticleAnalyzer analisadorParticulas = new ParticleAnalyzer(options, measurements, resultado, minSize,
 					maxSize);
 			// analisadorParticulas.showDialog();
-			analisadorParticulas.analyze(binarizada);
+			analisadorParticulas.setHideOutputImage(true);
+			binarizada.setRoi(10, 10, 400, 200);
+			if (analisadorParticulas.analyze(binarizada)) {
+				valorResultado = resultado.getCounter();
 
-			//ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg",new File(caminhoImagemResultado + "/analisadorParticulas_" + arquivoImagem.getName()));
-			resultado.save(caminhoImagemResultado + "/analisadorParticulas_" + arquivoImagem.getName() + ".xls");
-
-			// resultado.show(arquivoImagem.getName());
+				ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg", new File(
+						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.jpg"));
+				resultado.save(
+						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.xls");
+			}
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		return 0;
+		return valorResultado;
 	}
 
 	public ImageProcessor binarizarImagem(ImageProcessor ip) {
