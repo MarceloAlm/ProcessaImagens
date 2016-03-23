@@ -87,10 +87,15 @@ public class _ProcessaImagens implements PlugIn {
 			ImageIO.write(binarizada.getBufferedImage(), "jpeg",
 					new File(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo01_binarizarImagem.jpg"));
 
+			// tabela de resultados
 			ResultsTable resultado = new ResultsTable();
+			
+			// Opções para a análise de particulas @ij.plugin.filter.ParticleAnalyzer
 			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
 					| ParticleAnalyzer.DISPLAY_SUMMARY | ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES
 					| ParticleAnalyzer.INCLUDE_HOLES;
+			
+			// Define a área mínima e máxima das particulas
 			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
 
 			// "Area"; [0]=AREA
@@ -111,16 +116,32 @@ public class _ProcessaImagens implements PlugIn {
 			// "Kurtosis"; [15]=KURTOSIS
 			// "Area_fraction"; [16]=AREA_FRACTION
 			// "Stack position"; [17]=STACK_POSITION
-			int measurements = ParticleAnalyzer.AREA | ParticleAnalyzer.FERET;
+			
+			// opções de medidas realizadas @ij.measure.Measurements
+			int measurements = ij.measure.Measurements.AREA | ij.measure.Measurements.FERET;
 
 			ParticleAnalyzer analisadorParticulas = new ParticleAnalyzer(options, measurements, resultado, minSize,
 					maxSize);
+
+			// Para editar os parâmetros manualmente
 			// analisadorParticulas.showDialog();
+
+			// Define se a imagem resultante será ocultada
 			analisadorParticulas.setHideOutputImage(true);
+
+			// Define a área de interesse na imagem (X, Y, Largura, Altura)
+			// -> X começando em zero e aumentando à esquerda
+			// -> Y começando em zero e aumentando à baixo
 			binarizada.setRoi(10, 100, 620, 200);
+
+			// Executa o processo de análise com as opções já definidas
 			if (analisadorParticulas.analyze(binarizada)) {
+				// TODO: definir fórmula e pesos para classificação
+				// define o resultado com o número de áreas encontradas dentro
+				// dos parâmentos informados
 				valorResultado = resultado.getCounter();
 
+				// grava as imagem e tabela de resultados
 				ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg", new File(
 						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.jpg"));
 				resultado.save(
@@ -131,6 +152,7 @@ public class _ProcessaImagens implements PlugIn {
 			e.printStackTrace();
 		}
 
+		// retorna o valor calculado da análise
 		return valorResultado;
 	}
 
