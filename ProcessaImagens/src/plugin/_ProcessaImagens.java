@@ -117,7 +117,7 @@ public class _ProcessaImagens implements PlugIn {
 					maxSize);
 			// analisadorParticulas.showDialog();
 			analisadorParticulas.setHideOutputImage(true);
-			binarizada.setRoi(10, 10, 400, 200);
+			binarizada.setRoi(10, 100, 620, 200);
 			if (analisadorParticulas.analyze(binarizada)) {
 				valorResultado = resultado.getCounter();
 
