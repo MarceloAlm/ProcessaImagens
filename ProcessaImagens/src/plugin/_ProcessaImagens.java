@@ -70,7 +70,7 @@ public class _ProcessaImagens implements PlugIn {
 				}
 			}
 		}
-		tabelaResultados.save(pastaResultados.getAbsolutePath() + "/resultados.xls");
+		tabelaResultados.save(pastaResultados.getAbsolutePath() + "/resultados.csv");
 		tabelaResultados.show("Resultados");
 	}
 
@@ -145,7 +145,7 @@ public class _ProcessaImagens implements PlugIn {
 				ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg", new File(
 						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.jpg"));
 				resultado.save(
-						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.xls");
+						caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo02_analisadorParticulas.csv");
 			}
 
 		} catch (IOException e) {
