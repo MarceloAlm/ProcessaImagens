@@ -1,7 +1,5 @@
 package modulos.preProcessamento.TiposProcessadoresImagem;
 
-import java.awt.Color;
-import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
 import java.awt.image.Kernel;

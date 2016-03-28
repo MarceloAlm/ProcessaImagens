@@ -4,7 +4,6 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -12,20 +11,17 @@ import javax.imageio.ImageIO;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.Roi;
 import ij.io.DirectoryChooser;
 import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import ij.plugin.filter.ParticleAnalyzer;
-import ij.plugin.frame.RoiManager;
 import ij.process.ImageConverter;
 import ij.process.ImageProcessor;
-import modulos.ExceptionTipoImagemInvalido;
-import modulos.preProcessamento.ProcessadoresImagem.*;
+import modulos.preProcessamento.ProcessadoresImagem.BinarizarImagemNiblack;
+import modulos.preProcessamento.ProcessadoresImagem.BinarizarImagemOtsu;
+import modulos.preProcessamento.TiposProcessadoresImagem.Binarizacao;
 import modulos.preProcessamento.TiposProcessadoresImagem.Filtros;
-import modulos.preProcessamento.TiposProcessadoresImagem.ProcessadorImagem;
-import modulos.preProcessamento.*;
 
 public class _ProcessaImagens implements PlugIn {
 
@@ -70,13 +66,14 @@ public class _ProcessaImagens implements PlugIn {
 				if (arquivoAnalisar.isFile()) {
 					// executa a funcção de análise das imagens em cada arquivo
 					// do vetor arquivosImagem
-					int resultado = analisarImagem(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/");
+//					int resultado = analisarImagem(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/");
 					try {
 						// armazena na tabela de resultados o nome do arquivo e
 						// o valor retornado pela função de análise
 						tabelaResultados.incrementCounter();
 						tabelaResultados.addValue("Arquivo", arquivoAnalisar.getName());
-						tabelaResultados.addValue("Resultado", resultado);
+						tabelaResultados.addValue("Niblack", analisarImagemNiblack(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/"));
+						tabelaResultados.addValue("Fixo", analisarImagemFixo(arquivoAnalisar, pastaResultados.getAbsolutePath() + "/"));
 					} catch (Exception e) {
 						IJ.showMessage(e.toString());
 					}
@@ -87,7 +84,7 @@ public class _ProcessaImagens implements PlugIn {
 		}
 	}
 
-	public int analisarImagem(File arquivoImagem, String caminhoImagemResultado) {
+	public int analisarImagemNiblack(File arquivoImagem, String caminhoImagemResultado) {
 		int valorResultado = Integer.MAX_VALUE;
 		int Passo = 0;
 		ImagePlus imagemAnalise = IJ.openImage(arquivoImagem.getAbsolutePath());
@@ -104,14 +101,14 @@ public class _ProcessaImagens implements PlugIn {
 			BufferedImage subImagem = imagemAnalise.getBufferedImage().getSubimage(105, 160, 190, 80);
 
 			BufferedImage medianaImagem = Filtros.aplicaFiltroMediana(subImagem);
-			ImageIO.write(medianaImagem, "jpeg", new File(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo"
-					+ String.format("%02d", ++Passo) + "_mediana.jpg"));
+			ImageIO.write(medianaImagem, "jpeg", new File(caminhoImagemResultado + "/" + arquivoImagem.getName()
+					+ "_passo" + String.format("%02d", ++Passo) + "_mediana.jpg"));
 
 			/* Binarização da imagem por Otsu */
 			BinarizarImagemOtsu imagemOtsu = new BinarizarImagemOtsu(medianaImagem);
 			ImagePlus binarizadaOtsu = new ImagePlus("Otsu", imagemOtsu.Processar());
 			ImageIO.write(binarizadaOtsu.getBufferedImage(), "jpeg", new File(caminhoImagemResultado + "/"
-					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizarOtsu.jpg"));
+					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizadaOtsu.jpg"));
 
 			/* Binarização da imagem por Niblack */
 			int Janela = (int) (imagemAnalise.getWidth() * 0.30);
@@ -119,7 +116,7 @@ public class _ProcessaImagens implements PlugIn {
 			BinarizarImagemNiblack imagemNiblack = new BinarizarImagemNiblack(medianaImagem, Janela, Fator);
 			ImagePlus binarizadaNiblack = new ImagePlus("Niblack", imagemNiblack.Processar());
 			ImageIO.write(binarizadaNiblack.getBufferedImage(), "jpeg", new File(caminhoImagemResultado + "/"
-					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizarNiblack.jpg"));
+					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizadaNiblack.jpg"));
 
 			// tabela de resultados
 			ResultsTable resultado = new ResultsTable();
@@ -127,7 +124,7 @@ public class _ProcessaImagens implements PlugIn {
 			// Opções para a análise de particulas
 			// @ij.plugin.filter.ParticleAnalyzer
 			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
-					| ParticleAnalyzer.DISPLAY_SUMMARY ;
+					| ParticleAnalyzer.DISPLAY_SUMMARY;
 			// | ParticleAnalyzer.INCLUDE_HOLES|
 			// ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES;
 
@@ -172,21 +169,128 @@ public class _ProcessaImagens implements PlugIn {
 			// binarizadaNiblack.setRoi(340, 160, 120, 80);
 
 			// Executa o processo de análise com as opções já definidas
-			ImageConverter ic2 = new ImageConverter(binarizadaNiblack);
-			ic2.convertToGray8();
-
+			ImageConverter icNiblack = new ImageConverter(binarizadaNiblack);
+			icNiblack.convertToGray8();
 			if (analisadorParticulas.analyze(binarizadaNiblack)) {
 				// TODO: definir fórmula e pesos para classificação
 				// define o resultado com o número de áreas encontradas dentro
 				// dos parâmentos informados
-				valorResultado = resultado.getCounter();
+				valorResultado = 0;
+				for (float area:resultado.getColumn(0)){
+					valorResultado += (int)area;
+				}
+				//valorResultado = resultado.getCounter();
 
 				// grava as imagem e tabela de resultados
 				ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg",
 						new File(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo"
-								+ String.format("%02d", ++Passo) + "_analisadorParticulas.jpg"));
+								+ String.format("%02d", ++Passo) + "_analisadorParticulas_niblack.jpg"));
 				resultado.save(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo"
-						+ String.format("%02d", ++Passo) + "_analisadorParticulas.csv");
+						+ String.format("%02d", ++Passo) + "_analisadorParticulas_niblack.csv");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		// retorna o valor calculado da análise
+		return valorResultado;
+	}
+
+	public int analisarImagemFixo(File arquivoImagem, String caminhoImagemResultado) {
+		int valorResultado = Integer.MAX_VALUE;
+		int Passo = 0;
+		ImagePlus imagemAnalise = IJ.openImage(arquivoImagem.getAbsolutePath());
+
+		// Converte a imagem para escala de conza em 8 bits (0 a 255)
+		ImageConverter ic = new ImageConverter(imagemAnalise);
+		ic.convertToGray8();
+
+		try {
+			ImageIO.write(imagemAnalise.getBufferedImage(), "jpeg", new File(caminhoImagemResultado + "/"
+					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_Original.jpg"));
+
+			// Roi(105, 160, 190, 80);
+			BufferedImage subImagem = imagemAnalise.getBufferedImage().getSubimage(105, 160, 190, 80);
+
+			BufferedImage medianaImagem = Filtros.aplicaFiltroMediana(subImagem);
+			ImageIO.write(medianaImagem, "jpeg", new File(caminhoImagemResultado + "/" + arquivoImagem.getName()
+					+ "_passo" + String.format("%02d", ++Passo) + "_mediana.jpg"));
+
+			/* Binarização da imagem com limiar fixo */
+			ImagePlus binarizadaFixo = new ImagePlus("Niblack", Binarizacao.retornaImagemBinarizada(medianaImagem, 127));
+			ImageIO.write(binarizadaFixo.getBufferedImage(), "jpeg", new File(caminhoImagemResultado + "/"
+					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizadaFixo.jpg"));
+
+			// tabela de resultados
+			ResultsTable resultado = new ResultsTable();
+
+			// Opções para a análise de particulas
+			// @ij.plugin.filter.ParticleAnalyzer
+			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
+					| ParticleAnalyzer.DISPLAY_SUMMARY;
+			// | ParticleAnalyzer.INCLUDE_HOLES|
+			// ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES;
+
+			// Define a área mínima e máxima das particulas
+			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
+
+			// "Area"; [0]=AREA
+			// "Mean gray value"; [1]=MEAN
+			// "Standard deviation"; [2]=STD_DEV
+			// "Modal gray value"; [3]=MODE
+			// "Min & max gray value"; [4]=MIN_MAX
+			// "Centroid"; [5]=CENTROID
+			// "Center of mass"; [6]=CENTER_OF_MASS
+			// "Perimeter"; [7]=PERIMETER
+			// "Bounding rectangle"; [8]=RECT
+			// "Fit ellipse"; [9]=ELLIPSE
+			// "Shape descriptors"; [10]=SHAPE_DESCRIPTORS
+			// "Feret's diameter"; [11]=FERET
+			// "Integrated density"; [12]=INTEGRATED_DENSITY
+			// "Median"; [13]=MEDIAN
+			// "Skewness"; [14]=SKEWNESS
+			// "Kurtosis"; [15]=KURTOSIS
+			// "Area_fraction"; [16]=AREA_FRACTION
+			// "Stack position"; [17]=STACK_POSITION
+
+			// opções de medidas realizadas @ij.measure.Measurements
+			int measurements = Measurements.AREA | Measurements.CENTROID | Measurements.SHAPE_DESCRIPTORS;
+
+			ParticleAnalyzer analisadorParticulas = new ParticleAnalyzer(options, measurements, resultado, minSize,
+					maxSize);
+
+			// Para editar os parâmetros manualmente
+			// analisadorParticulas.showDialog();
+
+			// Define se a imagem resultante será ocultada
+			analisadorParticulas.setHideOutputImage(true);
+
+			// Define a área de interesse na imagem (X, Y, Largura, Altura)
+			// -> X começando em zero e aumentando à esquerda
+			// -> Y começando em zero e aumentando à baixo
+			// binarizadaNiblack.setRoi(105, 160, 190, 80);
+			// binarizadaNiblack.setRoi(340, 160, 120, 80);
+
+			// Executa o processo de análise com as opções já definidas
+			ImageConverter icFixo = new ImageConverter(binarizadaFixo);
+			icFixo.convertToGray8();
+			if (analisadorParticulas.analyze(binarizadaFixo)) {
+				// TODO: definir fórmula e pesos para classificação
+				// define o resultado com o número de áreas encontradas dentro
+				// dos parâmentos informados
+				valorResultado = 0;
+				for (float area:resultado.getColumn(0)){
+					valorResultado += (int)area;
+				}
+				//valorResultado = resultado.getCounter();
+
+				// grava as imagem e tabela de resultados
+				ImageIO.write(analisadorParticulas.getOutputImage().getBufferedImage(), "jpeg",
+						new File(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo"
+								+ String.format("%02d", ++Passo) + "_analisadorParticulas_fixo.jpg"));
+				resultado.save(caminhoImagemResultado + "/" + arquivoImagem.getName() + "_passo"
+						+ String.format("%02d", ++Passo) + "_analisadorParticulas_fixo.csv");
 			}
 
 		} catch (Exception e) {
