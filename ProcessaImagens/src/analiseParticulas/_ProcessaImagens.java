@@ -211,14 +211,14 @@ public class _ProcessaImagens implements PlugIn {
 					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_Original.jpg"));
 
 			// Roi(105, 160, 190, 80);
-			BufferedImage subImagem = imagemAnalise.getBufferedImage().getSubimage(105, 160, 190, 80);
+			BufferedImage subImagem = imagemAnalise.getBufferedImage().getSubimage(105, 160, 190, 120);
 
 			BufferedImage medianaImagem = Filtros.aplicaFiltroMediana(subImagem);
 			ImageIO.write(medianaImagem, "jpeg", new File(caminhoImagemResultado + "/" + arquivoImagem.getName()
 					+ "_passo" + String.format("%02d", ++Passo) + "_mediana.jpg"));
 
 			/* Binarização da imagem com limiar fixo */
-			ImagePlus binarizadaFixo = new ImagePlus("Niblack", Binarizacao.retornaImagemBinarizada(medianaImagem, 127));
+			ImagePlus binarizadaFixo = new ImagePlus("Niblack", Binarizacao.retornaImagemBinarizada(subImagem, 100));
 			ImageIO.write(binarizadaFixo.getBufferedImage(), "jpeg", new File(caminhoImagemResultado + "/"
 					+ arquivoImagem.getName() + "_passo" + String.format("%02d", ++Passo) + "_binarizadaFixo.jpg"));
 
@@ -228,12 +228,12 @@ public class _ProcessaImagens implements PlugIn {
 			// Opções para a análise de particulas
 			// @ij.plugin.filter.ParticleAnalyzer
 			int options = ParticleAnalyzer.SHOW_OUTLINES | ParticleAnalyzer.SHOW_ROI_MASKS
-					| ParticleAnalyzer.DISPLAY_SUMMARY;
+					| ParticleAnalyzer.DISPLAY_SUMMARY | ParticleAnalyzer.SHOW_RESULTS;
 			// | ParticleAnalyzer.INCLUDE_HOLES|
 			// ParticleAnalyzer.EXCLUDE_EDGE_PARTICLES;
 
 			// Define a área mínima e máxima das particulas
-			double minSize = 500, maxSize = Double.POSITIVE_INFINITY;
+			double minSize = 50, maxSize = Double.POSITIVE_INFINITY;
 
 			// "Area"; [0]=AREA
 			// "Mean gray value"; [1]=MEAN
@@ -255,7 +255,7 @@ public class _ProcessaImagens implements PlugIn {
 			// "Stack position"; [17]=STACK_POSITION
 
 			// opções de medidas realizadas @ij.measure.Measurements
-			int measurements = Measurements.AREA | Measurements.CENTROID | Measurements.SHAPE_DESCRIPTORS;
+			int measurements = Measurements.AREA | Measurements.CENTROID | Measurements.SHAPE_DESCRIPTORS| Measurements.MIN_MAX;
 
 			ParticleAnalyzer analisadorParticulas = new ParticleAnalyzer(options, measurements, resultado, minSize,
 					maxSize);
